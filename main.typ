@@ -40,32 +40,127 @@
   "./data/LCSC__WM2603070005_20260515215838.csv",
 )
 
-#let data = file_list.fold((), (acc, file) => {
-  let raw_csv = csv(file)
-  let parsed = parse_lcsc_csv(raw_csv)
-  return acc + parsed
-})
 
+#let data = (
+  read("./data/index.txt")
+    .trim("\n")
+    .split("\n")
+    .fold((), (acc, file) => {
+      let raw_csv = csv("./data/" + file)
+      let parsed = parse_lcsc_csv(raw_csv)
+      return acc + parsed
+    })
+)
+
+#let truncate_lines(s, width, max_lines) = {
+  let words = s.replace(regex("\\s+"), " ").trim().split().filter(word => word != "")
+
+  let lines = ()
+  let current = ()
+  let truncated = false
+
+  for word in words {
+    let candidate = (current + (word,)).join(" ")
+
+    if measure(text(candidate)).width <= width {
+      current.push(word)
+    } else {
+      // 現在の行に単語があれば、次の行へ送る。
+      if current.len() > 0 {
+        // これ以上行を増やせない場合は省略する。
+        if lines.len() + 1 >= max_lines {
+          truncated = true
+          break
+        }
+
+        lines.push(current)
+        current = ()
+      }
+
+      // 単語自体が幅を超える場合も、途中では切らない。
+      if measure(text(word)).width > width {
+        truncated = true
+        break
+      }
+
+      current.push(word)
+    }
+  }
+
+  lines.push(current)
+
+  if truncated {
+    let last = lines.pop()
+
+    // … が収まるまで、末尾の単語を丸ごと削る。
+    while (
+      last.len() > 0 and measure(text(last.join(" ") + "…")).width > width
+    ) {
+      let _ = last.pop()
+    }
+
+    lines.push((last.join(" ") + "…",))
+  }
+
+  lines.map(words => box(text(words.join(" ")))).join(linebreak())
+}
 
 #let make_small_label(item) = {
   box(
     width: sub_w,
     height: sub_h,
-    stroke: (thickness: 0.3pt, dash: "dashed", paint: luma(180)),
+    stroke: (
+      thickness: 0.3pt,
+      dash: "dashed",
+      paint: luma(180),
+    ),
     inset: 1.0mm,
   )[
     #if item != none {
       set align(left + horizon)
-      set par(leading: 0.35em)
+      set par(leading: 0.35em, justify: false)
 
-      text(size: 7.5pt, item.at(1))
-      h(1mm)
-      text(size: 7pt, weight: "bold", item.at(0)) // LCSC ID
-      linebreak()
-      text(size: 6pt, fill: luma(80), item.at(2)) // Parameter
+      layout(size => {
+        // size.width は inset を除いた内側の幅。
+        let w = size.width
+
+        let mpn = box(text(size: 7.5pt, item.at(1)))
+        let lcsc = box(text(
+          size: 7pt,
+          weight: "bold",
+          item.at(0),
+        ))
+
+        let same_line = (
+          measure(mpn).width + 1mm + measure(lcsc).width <= w
+        )
+
+        let header = if same_line {
+          [#mpn#h(1mm)#lcsc]
+        } else {
+          [#mpn#linebreak()#lcsc]
+        }
+
+        let parameter = {
+          set text(
+            size: 6pt,
+            fill: luma(80),
+            hyphenate: false,
+          )
+
+          truncate_lines(
+            item.at(2),
+            w,
+            if same_line { 2 } else { 1 },
+          )
+        }
+
+        [#header#linebreak()#parameter]
+      })
     }
   ]
 }
+
 
 #let make_big_label(items) = {
   grid(
