@@ -1,5 +1,7 @@
 #let extract_rlc_params(desc, package) = {
-  if desc == none or desc == "" { return package }
+  if desc == none or desc == "" {
+    return if package != none { package } else { "" }
+  }
 
   let tokens = desc.split(" ")
   let extracted = ()
@@ -21,7 +23,7 @@
     }
   }
 
-  return extracted.join(" ")
+  return if extracted.len() == 0 { "" } else { extracted.join(" ") }
 }
 
 #let parse_lcsc_csv(raw_data) = {
@@ -30,7 +32,7 @@
   let find_col(keywords) = headers.position(h => keywords.any(k => lower(h).contains(lower(k))))
 
   let idx_lcsc = find_col(("lcsc", "商品番号"))
-  let idx_mpn = find_col(("mfr.part", "manufacture part", "メーカー型番"))
+  let idx_mpn = find_col(("mfr.part", "manufacture part", "メーカー型番", "mpn"))
   let idx_desc = find_col(("description", "詳細", "説明"))
   let idx_pkg = find_col(("package", "パッケージ", "footprint"))
   let idx_qty = find_col(("qty", "quantity", "数量", "order qty."))
@@ -38,7 +40,7 @@
   let formatted_data = ()
 
   for row in raw_data.slice(1) {
-    if row.len() == 0 or row.at(0) == "" { continue }
+    if row.len() == 0 or row.all(c => c.trim() == "") { continue }
 
     let lcsc = if idx_lcsc != none { row.at(idx_lcsc) } else { "" }
     let mpn = if idx_mpn != none { row.at(idx_mpn) } else { "" }

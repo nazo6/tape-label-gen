@@ -34,13 +34,6 @@
 )
 #set text(font: ("Noto Sans CJK JP", "MS PGothic", "BIZ UDPGothic"), size: 7pt)
 
-#let file_list = (
-  "./data/LCSC__WM2603060249_20260515215836.csv",
-  "./data/LCSC__WM2603060300_20260515204418.csv",
-  "./data/LCSC__WM2603070005_20260515215838.csv",
-)
-
-
 #let data = (
   read("./data/index.txt")
     .trim("\n")
